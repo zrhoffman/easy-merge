@@ -123,6 +123,23 @@ class GitlabMerger(Merger):
         print('Merged')
 
 
+def is_json(host):
+    try:
+        match = is_json \
+            .json_regex \
+            .match(
+            requests \
+                .get('https://' + host + '/api/v4') \
+                .headers['Content-Type']
+        )
+    except requests.exceptions.ConnectionError:
+        match = False  # catches the edge case of attempting to resolve api.gitlab.com
+
+    return match
+
+
+is_json.json_regex = re.compile(r'^application/json')
+
 parser = argparse.ArgumentParser(description='Merge branches in git easily')  # type: ArgumentParser
 parser.add_argument('-s', '--source', type=str, help='The source branch to merge from')
 parser.add_argument('-d', '--dest', type=str, help='The destination branch to merge to')
@@ -162,24 +179,6 @@ remote_host = re.search(
     pattern=r'([A-Za-z0-9\-\.]+)(:|/)',
     string=remote_url
 ).group(1)  # type: str
-
-
-def is_json(host):
-    try:
-        match = is_json \
-            .json_regex \
-            .match(
-            requests \
-                .get('https://' + host + '/api/v4') \
-                .headers['Content-Type']
-        )
-    except requests.exceptions.ConnectionError:
-        match = False  # catches the edge case of attempting to resolve api.gitlab.com
-
-    return match
-
-
-is_json.json_regex = re.compile(r'^application/json')
 
 if is_json('api.' + remote_host):
     # generate token at https://<github instance>/settings/tokens
