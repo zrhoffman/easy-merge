@@ -43,7 +43,7 @@ class GithubMerger(Merger):
             try:
                 if not (isinstance(token, str) and len(token) > 0):
                     raise Exception('Invalid token')
-                gh = Github(token)
+                gh = Github(login_or_token=token, base_url=remote_host)
                 success = True
             except Exception:
                 tries += 1
