@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-import argparse, getpass, keyring, re, subprocess, time
+import argparse, getpass, keyring, re, requests, subprocess, time
 from argparse import Namespace, ArgumentParser
-from re import Pattern
-from subprocess import check_output
 from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, GitRef
 from gitlab import Gitlab, GitlabHttpError
 from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest
-
 from keyring.backends.SecretService import Keyring
+from re import Pattern
+from subprocess import check_output
+
+from requests import Response
 
 
 class Merger:
@@ -131,14 +132,6 @@ parser.add_argument('--description', type=str, help='The description (body) of t
 # this is up here rather than later because we want to fail early if input does not validate
 args = parser.parse_args()  # type: Namespace
 
-# generate this at https://<github instance>/settings/tokens
-# give it repo::public_repo access (or the entire repo scope if you want private
-# repositories, too)
-if True:
-    merger = GithubMerger()
-elif True:
-    merger = GitlabMerger()
-
 remote = check_output(['git', 'remote']) \
     .decode('utf-8') \
     .strip() \
@@ -169,6 +162,34 @@ remote_host = re.search(
     pattern=r'([A-Za-z0-9\-\.]+)(:|/)',
     string=remote_url
 ).group(1)  # type: str
+
+
+def is_json(host):
+    try:
+        match = is_json \
+            .json_regex \
+            .match(
+            requests \
+                .get('https://' + host + '/api/v4') \
+                .headers['Content-Type']
+        )
+    except requests.exceptions.ConnectionError:
+        match = False  # catches the edge case of attempting to resolve api.gitlab.com
+
+    return match
+
+
+is_json.json_regex = re.compile(r'^application/json')
+
+if is_json('api.' + remote_host):
+    # generate token at https://<github instance>/settings/tokens
+    # give it repo::public_repo access (or the entire repo scope if you want private
+    # repositories, too)
+    merger = GithubMerger()
+elif is_json(remote_host):
+    # generate token at https://<gitlabhost>/profile/personal_access_tokens
+    # give it access to api, read_user, read_repository, and read_registry
+    merger = GitlabMerger()
 
 remote_host = 'https://' + remote_host + '/'
 
