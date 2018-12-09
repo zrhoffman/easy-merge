@@ -16,6 +16,9 @@ class Merger:
     TOKEN_SERVICE = 'Easy Merge'  # in the keyring, the group that the token is in
     TOKEN_NAME = 'Unimplemented'
 
+    def __init__(self, remote_host):
+        self.remote_host = remote_host
+
     def loadToken(self):
         self.userKeyring = keyring.get_keyring()  # type: Keyring
         self.token = self.userKeyring.get_password(self.TOKEN_SERVICE, self.TOKEN_NAME)
@@ -31,7 +34,7 @@ class Merger:
 class GithubMerger(Merger):
     TOKEN_NAME = 'GitHub token'
 
-    def connect_api(self, remote_host, max_tries=3):
+    def connect_api(self, max_tries=3):
         token = self.token
 
         # user gets max_tries tries to get the token correct
@@ -43,7 +46,7 @@ class GithubMerger(Merger):
             try:
                 if not (isinstance(token, str) and len(token) > 0):
                     raise Exception('Invalid token')
-                gh = Github(login_or_token=token, base_url=remote_host)
+                gh = Github(login_or_token=token, base_url=self.remote_host)
                 success = True
             except Exception:
                 tries += 1
@@ -78,7 +81,7 @@ class GithubMerger(Merger):
 class GitlabMerger(Merger):
     TOKEN_NAME = 'GitLab token'
 
-    def connect_api(self, remote_host, max_tries=3):
+    def connect_api(self, max_tries=3):
         token = self.token
 
         # user gets max_tries tries to get the token correct
@@ -90,7 +93,7 @@ class GitlabMerger(Merger):
             try:
                 if not (isinstance(token, str) and len(token) > 0):
                     raise Exception('Invalid token')
-                gl = Gitlab(remote_host, private_token=token)  # type: Gitlab
+                gl = Gitlab(url=self.remote_host, private_token=token)  # type: Gitlab
                 gl.auth()
                 success = True
             except Exception:
@@ -129,7 +132,7 @@ def is_json(host):
             .json_regex \
             .match(
             requests \
-                .get('https://' + host + '/api/v4') \
+                .get(host + '/api/v4') \
                 .headers['Content-Type']
         )
     except requests.exceptions.ConnectionError:
@@ -180,20 +183,22 @@ remote_host = re.search(
     string=remote_url
 ).group(1)  # type: str
 
-if is_json('api.' + remote_host):
+gitlab_host = 'https://' + remote_host
+github_host = 'https://api.' + remote_host
+
+if is_json(github_host):
     # generate token at https://<github instance>/settings/tokens
     # give it repo::public_repo access (or the entire repo scope if you want private
     # repositories, too)
-    merger = GithubMerger()
-elif is_json(remote_host):
+    merger = GithubMerger(github_host)
+elif is_json(gitlab_host):
     # generate token at https://<gitlabhost>/profile/personal_access_tokens
     # give it access to api, read_user, read_repository, and read_registry
-    merger = GitlabMerger()
-
-remote_host = 'https://' + remote_host + '/'
+    merger = GitlabMerger(gitlab_host)
 
 merger.loadToken()
-merger.connect_api(remote_host)
+merger.connect_api()
+
 
 message = check_output(
     ['git', 'log', '--pretty=%B', '-n1']
