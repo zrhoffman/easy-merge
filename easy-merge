@@ -2,14 +2,14 @@
 
 import argparse, getpass, keyring, re, requests, subprocess, time
 from argparse import Namespace, ArgumentParser
-from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, GitRef
-from gitlab import Gitlab, GitlabHttpError
+from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, GitRef #  package is named PyGithub
+from gitlab import Gitlab, GitlabHttpError #  package is named python-gitlab
 from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest
 from keyring.backends.SecretService import Keyring
 from re import Pattern
+from requests import Response
 from subprocess import check_output
 
-from requests import Response
 
 
 class Merger:
