@@ -223,6 +223,10 @@ else:
         )
     ).strip()
 
+current_branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']) \
+    .decode('utf-8') \
+    .strip()  # type: str
+
 if args.source != None:
     source_branch = args.source
 else:
@@ -241,12 +245,14 @@ else:
 
 if args.dest != None:
     target_branch = args.dest
+elif current_branch != source_branch:
+    target_branch = current_branch
 else:
-    target_branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']) \
-        .decode('utf-8') \
-        .strip()  # type: str
+    target_branch = 'master'
 
-subprocess.call('git checkout -b ' + source_branch, shell=True)
+if source_branch != current_branch:
+    subprocess.call('git checkout -b ' + source_branch, shell=True)
+
 subprocess.call('git push ' + remote + ' ' + source_branch, shell=True)
 
 merger.merge(remote_path, title, description, source_branch, target_branch)
