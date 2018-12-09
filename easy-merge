@@ -68,7 +68,7 @@ class GithubMerger(Merger):
         )  # type: PullRequest
         print('Created pull request!')
 
-        print('Waiting to merge (because GitHub\'s API is slow...')
+        print('Waiting to merge (because GitHub\'s API is slow)...')
         time.sleep(1)
         result = pull.merge()  # type: bool
         print('Merged')
