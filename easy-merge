@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-import argparse, getpass, keyring, re, requests, subprocess, time
+import argparse, getpass, keyring, re, requests, subprocess, time, urllib
 from argparse import Namespace, ArgumentParser
-from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, GitRef #  package is named PyGithub
-from gitlab import Gitlab, GitlabHttpError #  package is named python-gitlab
-from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest
+from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, \
+    GitRef  # package is named PyGithub
+from gitlab import Gitlab, GitlabHttpError  # package is named python-gitlab
+from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest, ProjectBranch
 from keyring.backends.SecretService import Keyring
 from re import Pattern
 from requests import Response
 from subprocess import check_output
-
 
 
 class Merger:
@@ -121,6 +121,7 @@ class GitlabMerger(Merger):
 
         projects = self.api.projects  # type: ProjectManager
         project = projects.get(remote_path)  # type: Project
+
         mergerequests = project.mergerequests  # type: ProjectMergeRequestManager
 
         mergeRequest = mergerequests.create(
@@ -162,7 +163,7 @@ parser.add_argument('-s', '--source', type=str, help='The source branch to merge
 parser.add_argument('-d', '--dest', type=str, help='The destination branch to merge to')
 parser.add_argument('-t', '--title', type=str, help='The title of the merge request')
 parser.add_argument('--description', type=str, help='The description (body) of the merge request')
-parser.add_argument('-n', '--no-squash' , action='store_true', help='If set, do not squash merged commits.')
+parser.add_argument('-n', '--no-squash', action='store_true', help='If set, do not squash merged commits.')
 
 # this is up here rather than later because we want to fail early if input does not validate
 args = parser.parse_args()  # type: Namespace
@@ -214,7 +215,6 @@ elif is_json(gitlab_host):
 merger.loadToken()
 merger.connect_api()
 
-
 message = check_output(
     ['git', 'log', '--pretty=%B', '-n1']
 ) \
@@ -248,17 +248,68 @@ if args.source != None:
     source_branch = args.source
 else:
     source_branch = re.sub(
-        pattern=r'[\W^_\-\.]+',
-        repl='_',
+        pattern=r'\s+',
+        repl='\xa0',  # non-breaking space
         string=message,
         flags=re.MULTILINE
     )  # type: Pattern
 
-    # branch name should not start or end with underscores
-    source_branch = re.search(
-        pattern=r'^_*(.*?)_*$',
-        string=source_branch
-    ).group(1)  # type: str
+# replace invalid character sequences with their unicode full-width equivalents
+# https://git-scm.com/docs/git-check-ref-format
+replacements = {
+    "..": {
+        "pattern": r'\.\.',
+        "replacement": u'\uff0e\uff0e',
+    },
+    "^": {
+        "pattern": r'\^',
+        "replacement": u'\uff3e',
+    },
+    "~": {
+        "pattern": r'~',
+        "replacement": u'\uff5e',
+    },
+    "/": {
+        "pattern": r'^/|/$',
+        "replacement": u'\uff0f',
+    },
+    "//": {
+        "pattern": r'//',
+        "replacement": u'\uff0f\uff0f',
+    },
+    ":": {
+        "pattern": r':',
+        "replacement": u'\uff1a',
+    },
+    ".": {
+        "pattern": r'^\.|\.$',
+        "replacement": u'\uff0e',
+    },
+    "?": {
+        "pattern": r'\?',
+        "replacement": u'\uff1f',
+    },
+    "*": {
+        "pattern": r'\*',
+        "replacement": u'\uff0a',
+    },
+    "[": {
+        "pattern": r'\[',
+        "replacement": u'\uff3b',
+    },
+    "@{": {
+        "pattern": r'@{',
+        "replacement": u'@\uff5b',
+    },
+    "@": {
+        "pattern": r'^@$',
+        "replacement": u'\uff20',
+    },
+    "\\": {
+        "pattern": r'\\',
+        "replacement": u'\uff3c',
+    },
+}
 
 if args.dest != None:
     target_branch = args.dest
@@ -268,13 +319,13 @@ else:
     target_branch = 'master'
 
 if source_branch != current_branch:
-    subprocess.call('git checkout -b ' + source_branch, shell=True)
+    subprocess.call(['git', 'checkout', '-b', source_branch])
 
-subprocess.call('git push ' + remote + ' ' + source_branch, shell=True)
+subprocess.call(['git', 'push', remote, source_branch])
 
 merger.merge(remote_path, title, description, source_branch, target_branch, squash)
 
-subprocess.call('git fetch ' + remote, shell=True)
-subprocess.call('git branch -D ' + target_branch, shell=True)
-subprocess.call('git checkout --merge --track ' + remote + '/' + target_branch, shell=True)
-subprocess.call('git branch -D ' + source_branch, shell=True)
+subprocess.call(['git', 'fetch', remote])
+subprocess.call(['git', 'branch', '-D', target_branch])
+subprocess.call(['git', 'checkout', '--merge', '--track', remote + '/' + target_branch])
+subprocess.call(['git', 'branch', '-D', source_branch])
