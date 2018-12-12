@@ -311,6 +311,13 @@ replacements = {
     },
 }
 
+for invalid_sequence, replacement_regex in replacements.items():
+    source_branch = re.sub(
+        pattern=replacement_regex['pattern'],
+        repl=replacement_regex['replacement'],
+        string=source_branch
+    )
+
 if args.dest != None:
     target_branch = args.dest
 elif current_branch != source_branch:
