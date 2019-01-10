@@ -65,7 +65,7 @@ class GithubMerger(Merger):
 
             self.api = gh
 
-    def merge(self, remote_path, title, scription, source_branch, target_branch, squash):
+    def merge(self, remote_path, title, scription, source_branch, target_branch, squash, merge: bool):
         merge_method = self.merge_method(squash)
 
         repo = self.api.get_repo(remote_path)  # type: Repository
@@ -78,14 +78,18 @@ class GithubMerger(Merger):
         )  # type: PullRequest
         print('Created pull request!')
 
-        print('Waiting to merge (because GitHub\'s API is slow)...')
-        time.sleep(1)
-        result = pull.merge(merge_method=merge_method)  # type: bool
-        print('Merged by ' + merge_method + ' method')
+        if merge:
+            print('Waiting to merge (because GitHub\'s API is slow)...')
+            time.sleep(1)
+            print('Finished waiting.')
+            result = pull.merge(merge_method=merge_method)  # type: bool
+            print('Merged by ' + merge_method + ' method')
+            source_ref = repo.get_git_ref('heads/' + source_branch)  # type: GitRef
+            source_ref.delete()
+            print('Deleted source branch ' + source_branch)
+        else:
+            print('Skipping merge')
 
-        source_ref = repo.get_git_ref('heads/' + source_branch)  # type: GitRef
-        source_ref.delete()
-        print('Deleted source branch ' + source_branch)
 
 
 class GitlabMerger(Merger):
@@ -116,7 +120,7 @@ class GitlabMerger(Merger):
 
         self.api = gl
 
-    def merge(self, remote_path, title, description, source_branch, target_branch, squash):
+    def merge(self, remote_path, title, description, source_branch, target_branch, squash, merge: bool):
         merge_method = self.merge_method(squash)
 
         projects = self.api.projects  # type: ProjectManager
@@ -137,8 +141,11 @@ class GitlabMerger(Merger):
 
         print('Created pull request!')
 
-        result = mergeRequest.merge()
-        print('Merged by ' + merge_method + ' method')
+        if merge:
+            result = mergeRequest.merge()
+            print('Merged by ' + merge_method + ' method')
+        else:
+            print('Skipping merge')
 
 
 def is_json(host):
@@ -164,6 +171,7 @@ parser.add_argument('-d', '--dest', type=str, help='The destination branch to me
 parser.add_argument('-t', '--title', type=str, help='The title of the merge request')
 parser.add_argument('--description', type=str, help='The description (body) of the merge request')
 parser.add_argument('-n', '--no-squash', action='store_true', help='If set, do not squash merged commits.')
+parser.add_argument('-e', '--no-merge', action='store_true', help='If set, do not merge the merge request')
 
 # this is up here rather than later because we want to fail early if input does not validate
 args = parser.parse_args()  # type: Namespace
@@ -330,9 +338,12 @@ if source_branch != current_branch:
 
 subprocess.call(['git', 'push', remote, source_branch])
 
-merger.merge(remote_path, title, description, source_branch, target_branch, squash)
+should_merge = args.no_merge == None
+merger.merge(remote_path, title, description, source_branch, target_branch, squash, should_merge)
 
 subprocess.call(['git', 'fetch', remote])
 subprocess.call(['git', 'branch', '-D', target_branch])
 subprocess.call(['git', 'checkout', '--merge', '--track', remote + '/' + target_branch])
-subprocess.call(['git', 'branch', '-D', source_branch])
+
+if should_merge == None:
+    subprocess.call(['git', 'branch', '-D', source_branch])
