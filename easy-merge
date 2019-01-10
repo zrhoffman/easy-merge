@@ -338,7 +338,7 @@ if source_branch != current_branch:
 
 subprocess.call(['git', 'push', remote, source_branch])
 
-should_merge = args.no_merge
+should_merge = args.no_merge == None
 merger.merge(remote_path, title, description, source_branch, target_branch, squash, should_merge)
 
 subprocess.call(['git', 'fetch', remote])
