@@ -164,6 +164,7 @@ parser.add_argument('-d', '--dest', type=str, help='The destination branch to me
 parser.add_argument('-t', '--title', type=str, help='The title of the merge request')
 parser.add_argument('--description', type=str, help='The description (body) of the merge request')
 parser.add_argument('-n', '--no-squash', action='store_true', help='If set, do not squash merged commits.')
+parser.add_argument('-e', '--no-merge', action='store_true', help='If set, do not merge the merge request')
 
 # this is up here rather than later because we want to fail early if input does not validate
 args = parser.parse_args()  # type: Namespace
@@ -330,7 +331,8 @@ if source_branch != current_branch:
 
 subprocess.call(['git', 'push', remote, source_branch])
 
-merger.merge(remote_path, title, description, source_branch, target_branch, squash)
+if args.no_merge == None:
+    merger.merge(remote_path, title, description, source_branch, target_branch, squash)
 
 subprocess.call(['git', 'fetch', remote])
 subprocess.call(['git', 'branch', '-D', target_branch])
