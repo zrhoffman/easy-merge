@@ -14,14 +14,14 @@ class Merger:
     def __init__(self, remote_host):
         self.remote_host = remote_host
 
-        self.userKeyring = keyring.get_keyring()  # type: Keyring
-        self.token = self.userKeyring.get_password(self.TOKEN_SERVICE, self.TOKEN_NAME)
+        self.user_keyring = keyring.get_keyring()  # type: Keyring
+        self.token = self.user_keyring.get_password(self.TOKEN_SERVICE, self.TOKEN_NAME)
         self.api = None
 
     def set_token(self):
         token = getpass.getpass(self.TOKEN_NAME + ': ')  # type: str
         if isinstance(token, str) and len(token) > 0:
-            self.userKeyring.set_password(self.TOKEN_SERVICE, self.TOKEN_NAME, token)
+            self.user_keyring.set_password(self.TOKEN_SERVICE, self.TOKEN_NAME, token)
 
         return token
 
