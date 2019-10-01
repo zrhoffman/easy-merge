@@ -1,8 +1,7 @@
 import getpass
-from gitlab import Gitlab, GitlabHttpError  # package is named python-gitlab
-from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest, ProjectBranch
-from github import Github, AuthenticatedUser, PaginatedList, Repository, PullRequest, Branch, \
-    GitRef  # package is named PyGithub
+from gitlab import Gitlab  # package is named python-gitlab
+from gitlab.v4.objects import ProjectManager, Project, ProjectMergeRequestManager, ProjectMergeRequest
+from github import Github, Repository, PullRequest, GitRef  # package is named PyGithub
 import keyring
 from keyring.backends.SecretService import Keyring
 import time
@@ -15,19 +14,20 @@ class Merger:
     def __init__(self, remote_host):
         self.remote_host = remote_host
 
-    def loadToken(self):
-        self.userKeyring = keyring.get_keyring()  # type: Keyring
         self.token = self.userKeyring.get_password(self.TOKEN_SERVICE, self.TOKEN_NAME)
+        self.userKeyring = keyring.get_keyring()  # type: Keyring
+        self.api = None
 
-    def setToken(self):
+    def set_token(self):
         token = getpass.getpass(self.TOKEN_NAME + ': ')  # type: str
         if isinstance(token, str) and len(token) > 0:
             self.userKeyring.set_password(self.TOKEN_SERVICE, self.TOKEN_NAME, token)
 
         return token
 
-    def merge_method(self, squash: bool):
-        if squash == True:
+    @staticmethod
+    def merge_method(squash: bool):
+        if squash is True:
             merge_method = 'squash'
         else:
             merge_method = 'merge'
@@ -38,15 +38,16 @@ class Merger:
 class GitlabMerger(Merger):
     TOKEN_NAME = 'GitLab token'
 
-    def connect_api(self, max_tries=3):
+    def connect_api(self, max_tries: int = 3):
         token = self.token
 
         # user gets max_tries tries to get the token correct
         tries = 0
         success = False
+
         gl = None
 
-        while success == False and tries < 3:
+        while not success and tries < max_tries:
             try:
                 if not (isinstance(token, str) and len(token) > 0):
                     raise Exception('Invalid token')
@@ -55,9 +56,9 @@ class GitlabMerger(Merger):
                 success = True
             except Exception:
                 tries += 1
-                token = self.setToken()
+                token = self.set_token()
 
-        if success == False:
+        if not success:
             print('Could not validate ' + self.TOKEN_NAME + '.')
             quit()
 
@@ -70,9 +71,9 @@ class GitlabMerger(Merger):
         projects = self.api.projects  # type: ProjectManager
         project = projects.get(remote_path)  # type: Project
 
-        mergerequests = project.mergerequests  # type: ProjectMergeRequestManager
+        merge_requests = project.mergerequests  # type: ProjectMergeRequestManager
 
-        mergeRequest = mergerequests.create(
+        merge_request = merge_requests.create(
             {
                 'source_branch': source_branch,
                 'target_branch': target_branch,
@@ -86,7 +87,7 @@ class GitlabMerger(Merger):
         print('Created pull request!')
 
         if merge:
-            result = mergeRequest.merge()
+            merge_request.merge()
             print('Merged by ' + merge_method + ' method')
         else:
             print('Skipping merge')
@@ -95,7 +96,7 @@ class GitlabMerger(Merger):
 class GithubMerger(Merger):
     TOKEN_NAME = 'GitHub token'
 
-    def connect_api(self, max_tries=3):
+    def connect_api(self, max_tries: int = 3):
         token = self.token
 
         # user gets max_tries tries to get the token correct
@@ -103,7 +104,7 @@ class GithubMerger(Merger):
         success = False
         gh = None
 
-        while success == False and tries < 3:
+        while not success and tries < max_tries:
             try:
                 if not (isinstance(token, str) and len(token) > 0):
                     raise Exception('Invalid token')
@@ -111,9 +112,9 @@ class GithubMerger(Merger):
                 success = True
             except Exception:
                 tries += 1
-                token = self.setToken()
+                token = self.set_token()
 
-            if success == False:
+            if not success:
                 raise Exception('Could not validate ' + self.TOKEN_NAME + '.')
 
             self.api = gh
@@ -136,7 +137,7 @@ class GithubMerger(Merger):
             print('Waiting to merge (because GitHub\'s API is slow)...')
             time.sleep(1)
             print('Finished waiting.')
-            result = pull.merge(merge_method=merge_method)  # type: bool
+            pull.merge(merge_method=merge_method)  # type: bool
             print('Merged by ' + merge_method + ' method')
             source_ref = repo.get_git_ref('heads/' + source_branch)  # type: GitRef
             source_ref.delete()

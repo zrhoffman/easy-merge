@@ -12,20 +12,20 @@ def is_json(host):
     try:
         match = is_json \
             .json_regex \
-            .match(
-            requests \
-                .get(host + '/api/v4') \
-                .headers['Content-Type']
-        )
+            .match(requests
+                   .get(host + '/api/v4')
+                   .headers['Content-Type']
+                   )
     except requests.exceptions.ConnectionError:
         match = False  # catches the edge case of attempting to resolve api.gitlab.com
 
     return match
 
 
-def main():
-    is_json.json_regex = re.compile(r'^application/json')
+is_json.json_regex = re.compile(r'^application/json')
 
+
+def main():
     arguments.add_parameters()
 
     # This is up here rather than later because we want to fail early if input does not validate
@@ -45,7 +45,7 @@ def main():
 
     # the URL of the repo
     remote_url = re.sub(
-        r'^https?:\/+|^.*@',
+        r'^https?:/+|^.*@',
         '',
         remote_url
     )
@@ -74,8 +74,11 @@ def main():
         # generate token at https://<gitlabhost>/profile/personal_access_tokens
         # give it access to api, read_user, read_repository, and read_registry
         merger = GitlabMerger(gitlab_host)
+    else:
+        raise Exception('Could not detect whether {remote_host} is a GitHub or GitLab instance'.format(
+            remote_host=remote_host
+        ))
 
-    merger.loadToken()
     merger.connect_api()
 
     message = check_output(
@@ -86,12 +89,12 @@ def main():
 
     lines = message.splitlines()
 
-    if args.title != None:
+    if args.title is not None:
         title = args.title
     else:
         title = lines.pop(0)
 
-    if args.description != None:
+    if args.description is not None:
         description = args.description
     else:
         description = '\n'.join(
@@ -107,15 +110,15 @@ def main():
         .decode('utf-8') \
         .strip()  # type: str
 
-    if args.source != None:
+    if args.source is not None:
         source_branch = args.source
     else:
-        source_branch = re.sub(
+        source_branch: Pattern = re.sub(
             pattern=r'\s+',
             repl='\xa0',  # non-breaking space
             string=message,
             flags=re.MULTILINE
-        )  # type: Pattern
+        )
 
     # replace invalid character sequences with their unicode full-width equivalents
     # https://git-scm.com/docs/git-check-ref-format
@@ -181,7 +184,7 @@ def main():
             string=source_branch
         )
 
-    if args.dest != None:
+    if args.dest is not None:
         target_branch = args.dest
     elif current_branch != source_branch:
         target_branch = current_branch
