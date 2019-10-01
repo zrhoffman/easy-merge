@@ -212,6 +212,8 @@ def main():
     merger.merge(remote_path, title, description, source_branch, target_branch, squash, should_merge)
 
     subprocess.call(['git', 'fetch', remote])
-    subprocess.call(['git', 'branch', '-D', target_branch])
-    subprocess.call(['git', 'checkout', '--merge', '--track', remote + '/' + target_branch])
-    subprocess.call(['git', 'branch', '-D', source_branch])
+
+    if should_merge:
+        subprocess.call(['git', 'branch', '-D', target_branch])
+        subprocess.call(['git', 'checkout', '--merge', '--track', remote + '/' + target_branch])
+        subprocess.call(['git', 'branch', '-D', source_branch])
