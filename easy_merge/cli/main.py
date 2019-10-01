@@ -192,7 +192,19 @@ def main():
         target_branch = 'master'
 
     if source_branch != current_branch:
-        subprocess.call(['git', 'checkout', '-b', source_branch])
+        branches: str = check_output([
+            'git', 'for-each-ref', '--shell', '--format=\'%(refname:lstrip=2)\'', 'refs/heads']
+        ) \
+            .decode('utf-8') \
+            .strip()
+
+        checkout_command = ['git', 'checkout']
+
+        if source_branch not in branches:
+            checkout_command.append('-b')
+
+        checkout_command.append(source_branch)
+        subprocess.call(checkout_command)
 
     subprocess.call(['git', 'push', remote, source_branch])
 
