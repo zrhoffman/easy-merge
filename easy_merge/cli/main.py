@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from argparse import Namespace
 
-from cli import arguments
+from . import arguments
 import re, requests, subprocess
 from re import Pattern
-from mergers import GithubMerger, GitlabMerger
+from ..mergers import GithubMerger, GitlabMerger
 from subprocess import check_output
 
 
