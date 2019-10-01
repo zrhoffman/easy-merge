@@ -101,7 +101,7 @@ def main():
             )
         ).strip()
 
-    squash = not args.no_squash
+    squash = args.squash
 
     current_branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']) \
         .decode('utf-8') \
@@ -193,7 +193,7 @@ def main():
 
     subprocess.call(['git', 'push', remote, source_branch])
 
-    should_merge = not args.no_merge
+    should_merge = args.merge
     merger.merge(remote_path, title, description, source_branch, target_branch, squash, should_merge)
 
     subprocess.call(['git', 'fetch', remote])
