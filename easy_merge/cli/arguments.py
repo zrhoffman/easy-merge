@@ -1,7 +1,7 @@
 import argparse
 from argparse import ArgumentParser, Namespace
 
-parser = argparse.ArgumentParser(description='Create and merge merge requests in GitLab or GitHub easily') # type: ArgumentParser
+parser = argparse.ArgumentParser(prog='easy-merge', description='Create and merge merge requests in GitLab or GitHub easily') # type: ArgumentParser
 
 
 def add_parameters():
